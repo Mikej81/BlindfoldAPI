@@ -1,14 +1,20 @@
 package main
 
 import (
+	"crypto/sha256"
 	"database/sql"
 	"encoding/base64"
+	"encoding/hex"
+	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"log"
 	"net/http"
 	"net/url"
 	"os"
+	"os/exec"
+	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/gin-contrib/sessions"
@@ -17,6 +23,7 @@ import (
 	"github.com/google/uuid"
 	_ "github.com/mattn/go-sqlite3"
 	"golang.org/x/crypto/bcrypt"
+	"gopkg.in/yaml.v2"
 )
 
 func blindfoldKey(key string) {}
@@ -25,6 +32,8 @@ func blindfoldKey(key string) {}
 func getSecretPolicyDocument(tenantUrl, tenantToken, policyDocName string) (string, error) {
 	// Construct the full API URL
 	var apiUrl string
+
+	//fmt.Printf("Attempting to download Secrets Document %s from %s with %s", policyDocName, tenantUrl, tenantToken)
 
 	if policyDocName == "" {
 		apiUrl = fmt.Sprintf("%s/api/secret_management/namespaces/shared/secret_policys/ves-io-allow-volterra/get_policy_document", tenantUrl)
@@ -59,14 +68,45 @@ func getSecretPolicyDocument(tenantUrl, tenantToken, policyDocName string) (stri
 	}
 
 	// Read the response body
-	body, err := ioutil.ReadAll(resp.Body)
+	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return "", fmt.Errorf("reading response body: %v", err)
 	}
 
-	return string(body), nil
-}
+	// Parse the JSON input
+	var jsonInput SecretPolicyInput
+	if err := json.Unmarshal([]byte(body), &jsonInput); err != nil {
+		panic(err)
+	}
 
+	// Prepare the YAML output struct
+	yamlOutput := SecretPolicyOutput{
+		Data: struct {
+			Tenant     string `yaml:"tenant"`
+			PolicyID   string `yaml:"policyId"`
+			PolicyInfo struct {
+				Rules []interface{} `yaml:"rules"`
+			} `yaml:"policyInfo"`
+		}{
+			Tenant:   jsonInput.Data.Tenant,
+			PolicyID: jsonInput.Data.PolicyID,
+			PolicyInfo: struct {
+				Rules []interface{} `yaml:"rules"`
+			}{
+				Rules: jsonInput.Data.PolicyInfo.Rules,
+			},
+		},
+	}
+
+	// Convert the YAML output struct to a YAML string
+	yamlBytes, err := yaml.Marshal(yamlOutput)
+	if err != nil {
+		panic(err)
+	}
+
+	//return string(body), nil
+	return string(yamlBytes), nil
+}
 func getTenantPublicKey(tenantUrl, tenantToken string) (string, error) {
 	// Construct the full API URL
 	apiUrl := fmt.Sprintf("%s/api/secret_management/get_public_key", tenantUrl)
@@ -98,22 +138,80 @@ func getTenantPublicKey(tenantUrl, tenantToken string) (string, error) {
 	}
 
 	// Read the response body
-	body, err := ioutil.ReadAll(resp.Body)
+	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return "", fmt.Errorf("reading response body: %v", err)
 	}
 
-	return string(body), nil
-}
+	var jsonInput PublicKeyInput
+	if err := json.Unmarshal([]byte(body), &jsonInput); err != nil {
+		panic(err)
+	}
 
+	yamlOutput := PublicKeyOutput{}
+
+	yamlOutput.Data.Tenant = jsonInput.Data.Tenant
+	yamlOutput.Data.KeyVersion = jsonInput.Data.KeyVersion
+	yamlOutput.Data.ModulusBase64 = jsonInput.Data.ModulusBase64
+	yamlOutput.Data.PublicExponentBase64 = jsonInput.Data.PublicExponentBase64
+
+	yamlData, err := yaml.Marshal(yamlOutput)
+	if err != nil {
+		panic(err)
+	}
+
+	//return string(body), nil
+	return string(yamlData), nil
+}
+func blindfoldPrivateKey(dir, policy, publicKey, privateKey string) (string, error) {
+	// Assuming 'dir' is available within this context
+	blindfoldKeyPath := filepath.Join(dir, "blindfold-key")
+
+	// Format the command with arguments
+	// It's crucial to safely format commands to avoid command injection vulnerabilities
+	cmdStr := fmt.Sprintf("vesctl request secrets encrypt --policy-document %s --public-key %s %s", policy, publicKey, privateKey)
+	cmd := exec.Command("sh", "-c", cmdStr)
+
+	// Execute the command and capture the output
+	output, err := cmd.CombinedOutput() // CombinedOutput gets both stdout and stderr
+	if err != nil {
+		return "", fmt.Errorf("error executing command: %v, output: %s", err, string(output))
+	}
+
+	// At this point, output contains the command's output as a byte slice.
+	err = os.WriteFile(blindfoldKeyPath, output, 0644)
+	if err != nil {
+		return "", fmt.Errorf("failed to write output to file: %v", err)
+	}
+
+	return string(output), nil
+}
+func runShellCommand(command, outputFilePath string) error {
+	// Open the output file
+	outputFile, err := os.Create(outputFilePath)
+	if err != nil {
+		return fmt.Errorf("error creating output file: %v", err)
+	}
+	defer outputFile.Close()
+
+	// Execute the command using 'bash -c'
+	cmd := exec.Command("bash", "-c", command)
+	cmd.Stdout = outputFile // Redirect stdout to the file
+	cmd.Stderr = os.Stderr  // Redirect stderr to see errors in the console
+
+	// Run the command
+	if err := cmd.Run(); err != nil {
+		return fmt.Errorf("error executing command: %v", err)
+	}
+
+	return nil
+}
 func showSignupForm(c *gin.Context) {
 	c.HTML(http.StatusOK, "signup.html", nil)
 }
-
 func showHomePage(c *gin.Context) {
 	c.HTML(200, "index.html", nil)
 }
-
 func (app *App) handleSignup(c *gin.Context) {
 	db := app.DB // Obtain *sql.DB instance
 
@@ -167,7 +265,6 @@ func (app *App) handleSignup(c *gin.Context) {
 		c.Redirect(http.StatusFound, "/admin")
 	}
 }
-
 func AuthRequired() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		session := sessions.Default(c)
@@ -181,7 +278,6 @@ func AuthRequired() gin.HandlerFunc {
 		c.Next()
 	}
 }
-
 func (app *App) showOperationForm(c *gin.Context) {
 	session := sessions.Default(c)
 	currentUsername := session.Get("username")
@@ -215,7 +311,6 @@ func (app *App) showOperationForm(c *gin.Context) {
 		"GeneratedToken": newToken,
 	})
 }
-
 func (app *App) showAdminForm(c *gin.Context) {
 	session := sessions.Default(c)
 	currentUsername := session.Get("username")
@@ -277,11 +372,9 @@ func (app *App) showAdminForm(c *gin.Context) {
 		"GeneratedToken": newToken,
 	})
 }
-
 func showLoginForm(c *gin.Context) {
 	c.HTML(http.StatusOK, "login.html", nil)
 }
-
 func (app *App) handleLogin(c *gin.Context) {
 	username := c.PostForm("username")
 	password := c.PostForm("password")
@@ -318,16 +411,119 @@ func (app *App) handleLogin(c *gin.Context) {
 	} else {
 		c.Redirect(http.StatusFound, "/operations")
 	}
-
 }
-
 func (app *App) handleLogout(c *gin.Context) {
 	session := sessions.Default(c)
 	session.Clear()
 	session.Save()
 	c.Redirect(http.StatusFound, "/login")
 }
+func (app *App) handleBlindfoldKey(c *gin.Context) {
 
+	authorizeHeader := c.GetHeader("Authorization")
+	// Assuming the format is "Authorization: VESToken {APIToken}"
+	tokenParts := strings.Split(authorizeHeader, "VESToken ")
+	if len(tokenParts) != 2 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid authorization header format"})
+		return
+	}
+
+	apiToken := strings.TrimSpace(tokenParts[1])
+
+	// Verify token existence and fetch username
+	var username string
+	err := app.DB.QueryRow("SELECT username FROM APITokens WHERE token = ?", apiToken).Scan(&username)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid API token"})
+		} else {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Database error"})
+		}
+		return
+	}
+
+	var requestBody BlindfoldKeyRequest
+	if err := c.ShouldBindJSON(&requestBody); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body"})
+		return
+	}
+
+	// Use a hash of the API token as a directory name to avoid direct use of the token
+	hash := sha256.Sum256([]byte(apiToken))
+	dirName := hex.EncodeToString(hash[:])
+
+	dirPath := fmt.Sprintf("./data/%s", dirName) // Store in a subdirectory like "./data" for organization
+	if err := os.MkdirAll(dirPath, 0755); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create directory"})
+		return
+	}
+
+	tenantURL := requestBody.TenantURL
+	tenantToken := requestBody.TenantToken
+	privateKey := requestBody.PrivateKey
+	secretsPolicyName := requestBody.SecretsPolicyName // This is optional, so it might be an empty string.
+
+	// Write the private key to the file
+	keyName := "private.key"
+	keyPath := filepath.Join(dirPath, keyName)
+	if err := writePrivateKeyToFile(privateKey, keyPath); err != nil {
+		fmt.Println("Error writing private key to file:", err)
+	}
+
+	policyDoc, err := getSecretPolicyDocument(tenantURL, tenantToken, secretsPolicyName)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch policy document"})
+		return
+	}
+
+	// Specify the file name for the policy document. Adjust as needed.
+	docName := "policyDoc"
+	if secretsPolicyName != "" {
+		docName = secretsPolicyName // Use the policy name as part of the file name if available
+	}
+	policyPath := filepath.Join(dirPath, docName)
+
+	// Write the policy document to the file
+	err = os.WriteFile(policyPath, []byte(policyDoc), 0644)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to write policy document"})
+		return
+	}
+
+	publicKey, err := getTenantPublicKey(tenantURL, tenantToken)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch public key"})
+		return
+	}
+
+	pubKeyName := "publicKey"
+	pubKeyPath := filepath.Join(dirPath, pubKeyName)
+
+	err = os.WriteFile(pubKeyPath, []byte(publicKey), 0644)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to write public key"})
+		return
+	}
+
+	blindSecret, err := blindfoldPrivateKey(dirPath, policyPath, pubKeyPath, keyPath)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to blindfold key"})
+		return
+	}
+
+	// If the operation was successful, include blindSecret in the response
+	c.JSON(http.StatusOK, gin.H{"result": "success", "blindSecret": blindSecret})
+}
+func writePrivateKeyToFile(privateKey, dirPath string) error {
+	// Write the private key to the file
+	err := os.WriteFile(dirPath, []byte(privateKey), 0600) // 0600 permissions: only the owner can read and write
+	if err != nil {
+		return fmt.Errorf("failed to write private key to file: %v", err)
+	}
+
+	//fmt.Println("Private key written to:", dirPath)
+	return nil
+}
 func (app *App) deleteUser(c *gin.Context) {
 	username := c.PostForm("username")
 	_, err := app.DB.Exec("DELETE FROM Users WHERE username = ?", username)
@@ -363,7 +559,6 @@ func (app *App) deleteToken(c *gin.Context) {
 		return
 	}
 
-	// Assuming you're using a SQL database
 	_, err := app.DB.Exec("DELETE FROM APITokens WHERE id = ?", tokenId)
 	if err != nil {
 		c.HTML(http.StatusInternalServerError, "error.html", gin.H{"message": "Failed to delete token"})
@@ -379,12 +574,6 @@ func (app *App) deleteToken(c *gin.Context) {
 		return
 	}
 
-	// // Redirect back to the operations page, or you can render a success message
-	// if role == "admin" {
-	// 	c.Redirect(http.StatusFound, "/admin")
-	// } else if role == "user" {
-	// 	c.Redirect(http.StatusFound, "/operations")
-	// }
 	referer := c.Request.Header.Get("Referer")
 	if referer != "" {
 		c.Redirect(http.StatusFound, referer)
@@ -393,7 +582,6 @@ func (app *App) deleteToken(c *gin.Context) {
 		c.Redirect(http.StatusFound, "/") // Adjust the default redirect as necessary
 	}
 }
-
 func (app *App) generateToken(c *gin.Context) {
 	session := sessions.Default(c)
 	username := session.Get("username")
@@ -438,8 +626,6 @@ func (app *App) generateToken(c *gin.Context) {
 	// Redirect to the referer URL with the newToken query parameter added
 	c.Redirect(http.StatusFound, refererURL.String())
 }
-
-// initializeDatabaseTables creates the necessary tables if they don't exist.
 func initializeDatabaseTables(db *sql.DB) error {
 	// SQL statement for creating the Users table
 	createUsersTableSQL := `
@@ -472,7 +658,6 @@ func initializeDatabaseTables(db *sql.DB) error {
 
 	return nil
 }
-
 func main() {
 	r := gin.Default()
 	r.LoadHTMLGlob("templates/*")
@@ -508,11 +693,7 @@ func main() {
 	r.POST("/generate-token", AuthRequired(), app.generateToken)
 	r.POST("/logout", app.handleLogout)
 
-	r.POST("/blindfold-key", func(c *gin.Context) {
-		// Parse request, validate API key, and perform operations
-		// Dummy implementation
-		c.JSON(http.StatusOK, gin.H{"result": "success"})
-	})
+	r.POST("/blindfoldkey", app.handleBlindfoldKey)
 
 	// Get port from environment variable
 	port := os.Getenv("PORT")

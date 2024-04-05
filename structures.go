@@ -34,3 +34,53 @@ type APIToken struct {
 	CreatedAt string
 	Id        string
 }
+
+type BlindfoldKeyRequest struct {
+	APIToken          string `json:"apiToken" binding:"required"`
+	TenantURL         string `json:"tenantUrl" binding:"required"`
+	TenantToken       string `json:"tenantToken" binding:"required"`
+	PrivateKey        string `json:"privateKey" binding:"required"`
+	SecretsPolicyName string `json:"secretsPolicyName"` // Optional
+}
+
+// Structs for parsing JSON
+type SecretPolicyInput struct {
+	Data struct {
+		Tenant     string `json:"tenant"`
+		PolicyID   string `json:"policy_id"`
+		PolicyInfo struct {
+			Rules []interface{} `json:"rules"`
+		} `json:"policy_info"`
+	} `json:"data"`
+}
+
+// Structs for generating YAML
+type SecretPolicyOutput struct {
+	Data struct {
+		Tenant     string `yaml:"tenant"`
+		PolicyID   string `yaml:"policyId"`
+		PolicyInfo struct {
+			Rules []interface{} `yaml:"rules"`
+		} `yaml:"policyInfo"`
+	} `yaml:"data"`
+}
+
+// JSONInput matches the structure of the JSON input
+type PublicKeyInput struct {
+	Data struct {
+		Tenant               string `json:"tenant"`
+		KeyVersion           int    `json:"key_version"`
+		ModulusBase64        string `json:"modulus_base64"`
+		PublicExponentBase64 string `json:"public_exponent_base64"`
+	} `json:"data"`
+}
+
+// YAMLOutput matches the structure of the desired YAML output
+type PublicKeyOutput struct {
+	Data struct {
+		Tenant               string `yaml:"tenant"`
+		KeyVersion           int    `yaml:"keyVersion"`
+		ModulusBase64        string `yaml:"modulusBase64"`
+		PublicExponentBase64 string `yaml:"publicExponentBase64"`
+	} `yaml:"data"`
+}

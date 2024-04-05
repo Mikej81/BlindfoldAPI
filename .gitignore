@@ -21,3 +21,6 @@
 go.work
 
 blindfold_api.db
+test.json
+data/
+vesctl

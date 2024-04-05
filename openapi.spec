@@ -13,6 +13,8 @@ paths:
             schema:
               type: object
               properties:
+                apiToken:
+                  type: string
                 tenantUrl:
                   type: string
                 tenantToken:
@@ -22,6 +24,7 @@ paths:
                 secretsPolicyName: # Now optional
                   type: string
               required: 
+                - apiToken
                 - tenantUrl
                 - tenantToken
                 - privateKey
