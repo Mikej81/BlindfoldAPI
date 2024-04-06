@@ -169,7 +169,7 @@ func blindfoldPrivateKey(dir, policy, publicKey, privateKey string) (string, err
 
 	// Format the command with arguments
 	// It's crucial to safely format commands to avoid command injection vulnerabilities
-	cmdStr := fmt.Sprintf("vesctl request secrets encrypt --policy-document %s --public-key %s %s", policy, publicKey, privateKey)
+	cmdStr := fmt.Sprintf("./vesctl request secrets encrypt --policy-document %s --public-key %s %s", policy, publicKey, privateKey)
 	cmd := exec.Command("sh", "-c", cmdStr)
 
 	// Execute the command and capture the output

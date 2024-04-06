@@ -9,9 +9,6 @@ require (
 	github.com/mattn/go-sqlite3 v1.14.22
 	golang.org/x/crypto v0.21.0
 	gopkg.in/yaml.v2 v2.4.0
-)
-
-require (
 	github.com/bytedance/sonic v1.11.3 // indirect
 	github.com/chenzhuoyu/base64x v0.0.0-20230717121745-296ad89f973d // indirect
 	github.com/chenzhuoyu/iasm v0.9.1 // indirect
