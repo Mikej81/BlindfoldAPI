@@ -6,7 +6,6 @@ Example POST Body:
 
 ```json
 {
-    "apiToken": "exampleApiToken123",
     "tenantUrl": "https://example.tenant.com",
     "tenantToken": "exampleTenantToken456",
     "privateKey": "examplePrivateKey789",
