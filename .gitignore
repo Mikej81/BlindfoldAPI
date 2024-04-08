@@ -24,4 +24,4 @@ blindfold_api.db
 test.json
 data/
 vesctl
-./blindfold-server
+blindfold-server
