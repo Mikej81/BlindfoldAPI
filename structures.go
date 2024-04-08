@@ -36,7 +36,6 @@ type APIToken struct {
 }
 
 type BlindfoldKeyRequest struct {
-	APIToken          string `json:"apiToken" binding:"required"`
 	TenantURL         string `json:"tenantUrl" binding:"required"`
 	TenantToken       string `json:"tenantToken" binding:"required"`
 	PrivateKey        string `json:"privateKey" binding:"required"`
@@ -83,4 +82,19 @@ type PublicKeyOutput struct {
 		ModulusBase64        string `yaml:"modulusBase64"`
 		PublicExponentBase64 string `yaml:"publicExponentBase64"`
 	} `yaml:"data"`
+}
+
+type BlindfoldCertificate struct {
+	Metadata struct {
+		Name      string `json:"name"`
+		Namespace string `json:"namespace"`
+	} `json:"metadata"`
+	Spec struct {
+		CertificateURL string `json:"certificate_url"`
+		PrivateKey     struct {
+			BlindfoldSecretInfo struct {
+				Location string `json:"location"`
+			} `json:"blindfold_secret_info"`
+		} `json:"private_key"`
+	} `json:"spec"`
 }

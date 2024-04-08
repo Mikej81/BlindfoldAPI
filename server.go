@@ -452,7 +452,7 @@ func (app *App) handleBlindfoldKey(c *gin.Context) {
 	hash := sha256.Sum256([]byte(apiToken))
 	dirName := hex.EncodeToString(hash[:])
 
-	dirPath := fmt.Sprintf("./data/%s", dirName) // Store in a subdirectory like "./data" for organization
+	dirPath := fmt.Sprintf("/tmp/data/%s", dirName) // Store in a subdirectory like "./data" for organization
 	if err := os.MkdirAll(dirPath, 0755); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create directory"})
 		return
@@ -511,8 +511,32 @@ func (app *App) handleBlindfoldKey(c *gin.Context) {
 		return
 	}
 
+	prefixToRemove := "Encrypted Secret (Base64 encoded):"
+
+	// Check and remove the specified prefix if present
+	if prefixToRemove != "" && strings.HasPrefix(blindSecret, prefixToRemove) {
+		blindSecret = strings.TrimPrefix(blindSecret, prefixToRemove)
+		blindSecret = strings.ReplaceAll(blindSecret, "\n", "")
+		blindSecret = strings.ReplaceAll(blindSecret, "\r", "")
+		blindSecret = strings.TrimSpace(blindSecret)
+	}
+
+	var cert BlindfoldCertificate
+
+	cert.Metadata.Name = "Blindfold Cert"
+	cert.Metadata.Namespace = "Shared"
+	cert.Spec.CertificateURL = "string:///Base64EncodedCertificate"
+	cert.Spec.PrivateKey.BlindfoldSecretInfo.Location = "string:///" + blindSecret
+
+	responseBytes, err := json.Marshal(cert)
+	if err != nil {
+		// Handle error
+		c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"error": "Internal server error"})
+		return
+	}
+
 	// If the operation was successful, include blindSecret in the response
-	c.JSON(http.StatusOK, gin.H{"result": "success", "blindSecret": blindSecret})
+	c.Data(http.StatusOK, "application/json", responseBytes)
 }
 func writePrivateKeyToFile(privateKey, dirPath string) error {
 	// Write the private key to the file
@@ -666,7 +690,7 @@ func main() {
 	store := cookie.NewStore([]byte("secret"))
 	r.Use(sessions.Sessions("mysession", store))
 
-	db, err := sql.Open("sqlite3", "./blindfold_api.db")
+	db, err := sql.Open("sqlite3", "/tmp/blindfold_api.db")
 	if err != nil {
 		log.Fatal(err)
 	}
