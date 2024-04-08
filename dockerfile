@@ -18,7 +18,6 @@ COPY /templates /${GOUSER}/templates
 COPY ./entrypoint.sh /${GOUSER}/entrypoint.sh
 COPY ./blindfold-server /${GOUSER}/blindfold-server
 
-
 RUN chown -R ${GOUSER} ./entrypoint.sh && \
     chmod +x /${GOUSER}/entrypoint.sh
 
