@@ -76,6 +76,27 @@
         form {
             margin: 0;
         }
+
+        .logout-btn-container {
+            position: fixed;
+            /* or 'absolute' if within a container */
+            right: 20px;
+            top: 20px;
+        }
+
+        .logout-btn {
+            padding: 8px 16px;
+            background-color: #d9534f;
+            /* Bootstrap 'btn-danger' color for visual cue */
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+
+        .logout-btn:hover {
+            background-color: #c9302c;
+        }
     </style>
     <script>
         document.addEventListener("DOMContentLoaded", function () {
@@ -100,6 +121,12 @@
 </head>
 
 <body>
+    <!-- Logout Button Form -->
+    <div class="logout-btn-container">
+        <form action="/logout" method="POST">
+            <button type="submit" class="btn logout-btn">Logout</button>
+        </form>
+    </div>
     <div class="container">
         <h2>API Token Operations</h2>
         <form action="/generate-token" method="POST">

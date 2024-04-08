@@ -416,7 +416,7 @@ func (app *App) handleLogout(c *gin.Context) {
 	session := sessions.Default(c)
 	session.Clear()
 	session.Save()
-	c.Redirect(http.StatusFound, "/login")
+	c.Redirect(http.StatusFound, "/")
 }
 func (app *App) handleBlindfoldKey(c *gin.Context) {
 
