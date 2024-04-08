@@ -112,7 +112,7 @@
                     }
                     // Remove the token from the URL without reloading the page
                     var url = new URL(window.location.href);
-                    url.searchParams.delete("newToken"); // Assuming 'newToken' is your query param
+                    url.searchParams.delete("newToken");
                     window.history.pushState({}, '', url);
                 });
             }

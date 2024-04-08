@@ -1,6 +1,10 @@
-# BlindfoldAPI
+# BlindfoldAPI (Proof of Concept)
 
 This is to create an API for Blindfolding Secrets programatically.
+
+1. Create an API Token in your tenant.
+2. Map your Tenant URL and Token to the Example POST body below.
+3. Ensure that your Private Key is in PEM format.
 
 Example POST Body:
 
@@ -10,6 +14,25 @@ Example POST Body:
     "tenantToken": "exampleTenantToken456",
     "privateKey": "examplePrivateKey789",
     "secretsPolicyName": "ves-io-allow-volterra"
+}
+```
+
+Example Response Body:
+
+```json
+{
+   "metadata" : {
+      "name" : "Blindfold Cert",
+      "namespace" : "Shared"
+   },
+   "spec" : {
+      "certificate_url" : "string:///Base64EncodedCertificate",
+      "private_key" : {
+         "blindfold_secret_info" : {
+            "location" : "string:///AAAADmY1LXNhLXJueGV1ZHNzAAAAAQAAAAAAAABlAgAAAAUDh3Rb2QAAAQDH7"
+         }
+      }
+   }
 }
 ```
 
