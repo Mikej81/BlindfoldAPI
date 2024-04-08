@@ -1,4 +1,3 @@
-<!-- templates/signup.html -->
 <!DOCTYPE html>
 <html lang="en">
 
@@ -6,7 +5,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Signup</title>
-    <link rel="stylesheet" href="/path/to/your/styles.css"> <!-- If you have a separate CSS file -->
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -32,23 +30,34 @@
         }
 
         form>* {
-            margin: 10px 0;
-            width: 100%;
+            margin: 15px 0;
+            /* Adjusted for consistent spacing */
+            width: calc(100% - 20px);
+            /* Adjust width to account for padding */
             padding: 10px;
             border-radius: 4px;
             border: 1px solid #ddd;
+            font-size: 16px;
+            /* Ensure font size is consistent */
         }
 
         .btn {
-            padding: 8px 16px;
-            margin: 8px 0;
-            border: none;
+            padding: 10px;
+            /* Adjust padding to match inputs if needed */
+            margin: 15px 0;
+            /* Ensure margin matches that of inputs */
+            width: calc(100% - 20px);
+            /* Adjust width to account for padding */
+            border: 1px solid #ddd;
+            /* Optional: for consistency with input fields */
             border-radius: 4px;
             background-color: #007bff;
             color: white;
             cursor: pointer;
             display: block;
             /* Make the button expand to the full width */
+            font-size: 16px;
+            /* Match font size with inputs */
         }
 
         .btn:hover {
@@ -58,17 +67,19 @@
         input[type=email],
         input[type=password] {
             font-size: 16px;
+            /* Ensures input text size is consistent */
         }
     </style>
+
 </head>
 
 <body>
-    <div class="login-container">
+    <div class="signup-container"> <!-- Corrected class name -->
         <form action="/signup" method="POST">
             <h2>Signup</h2>
             <input type="email" name="username" placeholder="Email" required>
             <input type="password" name="password" placeholder="Password" required>
-            <button type="submit">Signup</button>
+            <button type="submit" class="btn">Signup</button> <!-- Added class "btn" for styling -->
         </form>
     </div>
 </body>
