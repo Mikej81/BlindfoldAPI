@@ -3,7 +3,7 @@ info:
   title: vesctl API
   version: "1.0.0"
 paths:
-  /blindfold-key:
+  /blindfoldkey:
     post:
       summary: Use vesctl to offline blindfold a private key
       requestBody:

@@ -2,9 +2,18 @@
 
 This is to create an API for Blindfolding Secrets programatically.
 
-1. Create an API Token in your tenant.
+1. Create an API Token in your tenant. (This maps to Tenant Token in POST Body)
 2. Map your Tenant URL and Token to the Example POST body below.
 3. Ensure that your Private Key is in PEM format.
+
+## Usage
+
+1. Deploy workload and sign in.  First user is assiged admin role.  All other accouts are user role.  
+2. Generate API Token.  (This maps to VESToken in POST Header)
+
+```bash
+curl -X POST -H "Content-Type: application/json" -H "Authorization: VESToken {APIToken}" https://blindfold.domain.com/blindfoldkey -d @body.json
+```
 
 Example POST Body:
 
@@ -44,7 +53,7 @@ info:
   title: vesctl API
   version: "1.0.0"
 paths:
-  /blindfold-key:
+  /blindfoldkey:
     post:
       summary: Use vesctl to offline blindfold a private key
       requestBody:
